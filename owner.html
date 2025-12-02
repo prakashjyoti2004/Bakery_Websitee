@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bakery Owner Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Poppins", sans-serif;
+    }
+
+    body {
+      background: #fff7f0;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #f8b195;
+      color: white;
+      width: 100%;
+      text-align: center;
+      padding: 20px;
+      font-size: 2em;
+      font-weight: bold;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    main {
+      width: 90%;
+      max-width: 1000px;
+      margin: 20px auto;
+    }
+
+    form {
+      background: #ffe1d0;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 30px;
+    }
+
+    form h2 {
+      text-align: center;
+      color: #c65353;
+      margin-bottom: 10px;
+    }
+
+    form input,
+    form textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1em;
+    }
+
+    form button {
+      width: 100%;
+      background: #f67280;
+      color: white;
+      font-size: 1.1em;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    form button:hover {
+      background: #c06c84;
+    }
+      
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .item {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      transition: transform 0.3s;
+    }
+
+    .item:hover {
+      transform: translateY(-5px);
+    }
+
+    .item img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+    }
+
+    .info {
+      padding: 15px;
+      text-align: center;
+    }
+
+    .info h3 {
+      color: #d45a3d;
+      margin-bottom: 8px;
+    }
+
+    .info p {
+      font-size: 0.9em;
+      color: #555;
+      margin-bottom: 10px;
+    }
+
+    .delete-btn {
+      background: #ff6b6b;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.3s;
+      font-weight: bold;
+    }
+
+    .delete-btn:hover {
+      background: #d9534f;
+    }
+
+    .link {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    .link a {
+      color: #d45a3d;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .link a:hover {
+      text-decoration: underline;
+    }
+
+    .status {
+      margin: 10px 0;
+      text-align: center;
+      font-weight: bold;
+    }
+
+  </style>
+</head>
+<body>
+  <header>🍰 Bakery Owner Dashboard</header>
+
+  <main>
+    <script>
+      // simple client-side password gating
+      const password = "myBakery123";
+      const entered = sessionStorage.getItem("ownerAccess");
+
+      if (entered !== "true") {
+        const userPass = prompt("🔐 Enter Owner Password:");
+        if (userPass === password) {
+          sessionStorage.setItem("ownerAccess", "true");
+          alert("✅ Access granted!");
+        } else {
+          alert("❌ Wrong password! Redirecting...");
+          window.location.href = "index.html";
+        }
+      }
+    </script>
+
+    <form id="addItemForm" enctype="multipart/form-data">
+      <h2>Add New Cake or Cookie</h2>
+      <input type="text" id="name" placeholder="Item Name (e.g. Chocolate Cake)" required />
+      <textarea id="description" placeholder="Enter short description..." required></textarea>
+      <input type="file" id="photo" accept="image/*" required />
+      <button type="submit">Add Item</button>
+    </form>
+
+    <div class="status" id="statusMsg"></div>
+
+    <!-- Gallery of added items -->
+    <section class="gallery" id="gallery"></section>
+
+    <div class="link">
+      <p>👀 View as Customer? <a href="index.html">Go to Customer Page</a></p>
+    </div>
+  </main>
+
+  <script>
+    // backend base URL
+    const BASE = '';
+
+    const form = document.getElementById("addItemForm");
+    const gallery = document.getElementById("gallery");
+    const statusMsg = document.getElementById("statusMsg");
+
+    // load items initially
+    async function loadItems() {
+      try {
+        const res = await fetch('/items');
+        const items = await res.json();
+        displayItems(items);
+      } catch (err) {
+        console.error(err);
+        statusMsg.textContent = "Error fetching items.";
+      }
+    }
+
+    // Add new bakery item -> POST /addItem
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      statusMsg.textContent = "Uploading...";
+
+      const name = document.getElementById("name").value.trim();
+      const description = document.getElementById("description").value.trim();
+      const photo = document.getElementById("photo").files[0];
+
+      if (!name || !description || !photo) {
+        alert("Please fill all fields!");
+        statusMsg.textContent = "";
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('description', description);
+      fd.append('photo', photo);
+
+      try {
+        const resp = await fetch('/addItem', {
+          method: 'POST',
+          body: fd
+        });
+        const data = await resp.json();
+        if (data.success) {
+          statusMsg.textContent = "Item added successfully!";
+          form.reset();
+          // no need to manually reload: SSE will trigger client to reload
+          setTimeout(()=> statusMsg.textContent = "", 2000);
+        } else {
+          statusMsg.textContent = "Upload failed.";
+        }
+      } catch (err) {
+        console.error(err);
+        statusMsg.textContent = "Upload error.";
+      }
+    });
+
+    // display items and show delete option
+    function displayItems(items) {
+      gallery.innerHTML = "";
+      if (!items || items.length === 0) {
+        gallery.innerHTML = "<p style='text-align:center;'>No items added yet.</p>";
+        return;
+      }
+
+      items.forEach(item => {
+        const div = document.createElement("div");
+        div.classList.add("item");
+        div.innerHTML = `
+          <img src="${item.imageURL}" alt="${escapeHtml(item.name)}" />
+          <div class="info">
+            <h3>${escapeHtml(item.name)}</h3>
+            <p>${escapeHtml(item.description)}</p>
+            <button class="delete-btn" data-id="${item.id}">🗑️ Delete</button>
+          </div>
+        `;
+        gallery.appendChild(div);
+      });
+
+      // attach delete handlers
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = e.currentTarget.getAttribute('data-id');
+          if (!confirm('Are you sure you want to delete this item?')) return;
+          try {
+            const res = await fetch(`/delete/${id}`, { method: 'DELETE' });
+            const json = await res.json();
+            if (json.success) {
+              // SSE will notify; but we can optimistically remove
+              loadItems();
+            } else {
+              alert('Delete failed');
+            }
+          } catch (err) {
+            console.error(err);
+            alert('Delete error');
+          }
+        });
+      });
+    }
+
+    // simple escape to avoid HTML injection from DB values
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/[&<>"']/g, function (m) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m];
+      });
+    }
+
+    // SSE connection to receive live update events
+    function connectSSE() {
+      try {
+        const evtSource = new EventSource('/live-updates');
+        evtSource.onmessage = function(e) {
+          // e.data may contain "update" or other info
+          // fetch latest items
+          loadItems();
+        };
+        evtSource.onerror = function(err) {
+          console.error('SSE error', err);
+          // eventsource auto-reconnects; show small note
+          statusMsg.textContent = "Connection lost, retrying...";
+          setTimeout(()=> statusMsg.textContent = "", 2000);
+        };
+      } catch (err) {
+        console.error('SSE not supported', err);
+      }
+    }
+
+    // init
+    loadItems();
+    connectSSE();
+  </script>
+</body>
+</html>
